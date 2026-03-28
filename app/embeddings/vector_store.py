@@ -4,33 +4,26 @@ import logging
 import numpy as np
 import faiss
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 
 logger = logging.getLogger(__name__)
 
 DIMENSION = 384  # all-MiniLM-L6-v2 output size
-INDEX_PATH = Path("data/faiss.index")
-METADATA_PATH = Path("data/faiss_metadata.json")
+
+# FAISS_DIR can be overridden via env var to point to a Render persistent disk
+# e.g. FAISS_DIR=/data  on Render, defaults to ./data locally
+_faiss_dir = Path(os.getenv("FAISS_DIR", "data"))
+INDEX_PATH = _faiss_dir / "faiss.index"
+METADATA_PATH = _faiss_dir / "faiss_metadata.json"
 
 
 class VectorStore:
-    """
-    Wraps a FAISS flat L2 index.
-    - Embeddings live in FAISS (fast similarity search)
-    - Metadata (digest_id, title, etc.) lives in a parallel JSON list
-    Both are persisted to disk so state survives restarts.
-    """
-
     def __init__(self, index_path: Path = INDEX_PATH, metadata_path: Path = METADATA_PATH):
         self.index_path = index_path
         self.metadata_path = metadata_path
         self.index: faiss.IndexFlatL2
         self.metadata: List[Dict[str, Any]] = []
         self._load_or_create()
-
-    # ------------------------------------------------------------------ #
-    #  Internal helpers                                                    #
-    # ------------------------------------------------------------------ #
 
     def _load_or_create(self) -> None:
         self.index_path.parent.mkdir(parents=True, exist_ok=True)
@@ -51,26 +44,16 @@ class VectorStore:
         with open(self.metadata_path, "w") as f:
             json.dump(self.metadata, f)
 
-    # ------------------------------------------------------------------ #
-    #  Public API                                                          #
-    # ------------------------------------------------------------------ #
-
     def add(self, vector: np.ndarray, meta: Dict[str, Any]) -> None:
-        """Add a single embedding + its metadata. Skips duplicates by digest_id."""
         existing_ids = {m["digest_id"] for m in self.metadata}
         if meta.get("digest_id") in existing_ids:
             logger.debug(f"Skipping duplicate: {meta.get('digest_id')}")
             return
-
         self.index.add(np.array([vector], dtype="float32"))
         self.metadata.append(meta)
         self._save()
 
     def search(self, query_vector: np.ndarray, top_k: int = 20) -> List[Dict[str, Any]]:
-        """
-        Return the top_k most similar metadata dicts.
-        Returns fewer results if the index has fewer than top_k entries.
-        """
         if self.index.ntotal == 0:
             logger.warning("Vector store is empty — no results.")
             return []
@@ -97,11 +80,6 @@ class VectorStore:
         return self.index.ntotal
 
     def rebuild_from_digests(self, digests: List[Dict[str, Any]], get_embedding_fn) -> int:
-        """
-        Utility: rebuild the entire index from a list of digest dicts.
-        Useful for a one-time backfill of existing digests.
-        Returns the number of vectors added.
-        """
         added = 0
         for d in digests:
             if self.is_indexed(d["id"]):
