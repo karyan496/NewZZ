@@ -21,11 +21,11 @@ RUN uv sync --no-dev
 # Copy the rest of the app
 COPY . .
 
-# Pre-download the sentence-transformer model so it's baked into the image
-# and doesn't download at runtime on every cold start
-RUN uv run python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+# Create temp directories
+RUN mkdir -p /tmp/faiss /tmp/huggingface
 
-# Create data directory for FAISS index persistence
-RUN mkdir -p /app/data
+# HuggingFace will download the model here at runtime
+ENV HF_HOME=/tmp/huggingface
+ENV TRANSFORMERS_CACHE=/tmp/huggingface
 
 CMD ["uv", "run", "python", "main.py"]
