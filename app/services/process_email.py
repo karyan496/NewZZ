@@ -1,10 +1,9 @@
 import sys
 from pathlib import Path
 
-# Get absolute path to your project root
-project_root = Path("C:/Users/KIIT0001/Documents/Coding/Newzz")
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
-sys.path.append(str(project_root))
 import logging
 from dotenv import load_dotenv
 
@@ -14,7 +13,7 @@ from app.agent.email_agent import EmailAgent, RankedArticleDetail, EmailDigestRe
 from app.agent.curator_agent import CuratorAgent
 from app.profiles.user_profile import USER_PROFILE
 from app.database.repository import Repository
-from app.services.email import send_email, digest_to_html
+from app.services.email_sender import send_email, digest_to_html  # ← renamed
 
 logging.basicConfig(
     level=logging.INFO,
@@ -109,4 +108,3 @@ if __name__ == "__main__":
         print(f"Articles: {result['articles_count']}")
     else:
         print(f"Error: {result['error']}")
-

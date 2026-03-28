@@ -72,7 +72,7 @@ def run_scrapers(hours: int = 50) -> dict:
 
 
 if __name__ == "__main__":
-    results = run_scrapers(hours=50)
+    results = run_scrapers(hours=150)
     print(f"YouTube videos: {len(results['youtube'])}")
     print(f"OpenAI articles: {len(results['openai'])}")
     print(f"Anthropic articles: {len(results['anthropic'])}")

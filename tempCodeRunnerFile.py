@@ -1,2 +1,1 @@
-
-        hours = int(sys.argv[1])
+150
